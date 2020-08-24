@@ -15,7 +15,7 @@ struct DayView: View {
     @Binding var selectedDay: Int
 
     var body: some View {
-        Text("\(day)")
+        Text(day > 0 ? "\(day)" : "")
             .frame(width: size, height: size)
             .modifier(SelectionViewModifier(isSelected: day == selectedDay))
             .onTapGesture {

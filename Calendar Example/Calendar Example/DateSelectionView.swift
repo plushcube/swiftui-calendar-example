@@ -55,6 +55,8 @@ struct DateSelectionView: View {
 
 private extension DateSelectionView {
 
+    // MARK: - Subviews
+
     var applyButton: some View {
         Button(action: {
             let components = DateComponents(
@@ -106,7 +108,7 @@ private extension DateSelectionView {
 
     var weekdayView: some View {
         HStack {
-            ForEach(calendar.shortWeekdaySymbols, id: \.self) { weekday in
+            ForEach(weekdays, id: \.self) { weekday in
                 Text(weekday)
                     .frame(maxWidth: .infinity)
             }
@@ -114,13 +116,15 @@ private extension DateSelectionView {
     }
 
     var dayPickerView: some View {
-        VStack(spacing: 8.0) {
-            ForEach(0 ..< 5) { week in
-                HStack(spacing: 8.0) {
+        VStack {
+            ForEach(0 ..< numberOfWeeks(in: month, year: year), id: \.self) { week in
+                HStack {
                     ForEach(1 ..< 8) { weekday in
-                        ZStack {
-                            DayView(day: (7 * week) + weekday, size: self.daySize, selectedDay: self.$day)
-                        }
+                        DayView(
+                            day: self.day(for: weekday, on: week),
+                            size: self.daySize,
+                            selectedDay: self.$day
+                        )
                         .frame(maxWidth: .infinity)
                         .background(
                             GeometryReader { proxy in
@@ -137,18 +141,69 @@ private extension DateSelectionView {
         }
     }
 
+    // MARK: - Utility functions
+
     func monthName(for index: Int) -> String {
         calendar.monthSymbols[index - 1]
     }
 
     func nextMonth() {
-        guard month < 12 else { return month = 1 }
-        month += 1
+        if month < 12 {
+            month += 1
+        } else {
+            month = 1
+            year += 1
+        }
     }
 
     func prevMonth() {
-        guard month > 1 else { return month = 12 }
-        month -= 1
+        if month > 1 {
+            month -= 1
+        } else {
+            month = 12
+            year -= 1
+        }
+    }
+
+    var weekdays: [String] {
+        var symbols = calendar.shortWeekdaySymbols
+        if calendar.firstWeekday == 1 {
+            symbols.append(symbols[0])
+            symbols.remove(at: 0)
+        }
+        return symbols
+    }
+
+    var firstDate: Date {
+        calendar.date(from: DateComponents(year: year, month: month, day: 1))!
+    }
+
+    var lastDate: Date {
+        let components = DateComponents(
+            year: year,
+            month: month,
+            day: calendar.range(of: .day, in: .month, for: firstDate)!.upperBound
+        )
+        return calendar.date(from: components)!
+    }
+
+    func numberOfWeeks(in month: Int, year: Int) -> Int {
+        guard let range = calendar.range(of: .day, in: .month, for: firstDate) else { return 0 }
+        let cells = monthOffset(for: month, in: year) + range.upperBound
+        return cells / 7 + (cells % 7 == 0 ? 0 : 1)
+    }
+
+    func monthOffset(for month: Int, in year: Int) -> Int {
+        let components = DateComponents(year: year, month: month, day: 1)
+        guard let firstDate = calendar.date(from: components) else { return 0 }
+        let offset = calendar.component(.weekday, from: firstDate) - calendar.firstWeekday - 1
+        return offset < 0 ? 7 + offset : offset
+    }
+
+    func day(for weekday: Int, on week: Int) -> Int {
+        guard let range = calendar.range(of: .day, in: .month, for: firstDate) else { return 0 }
+        let day = (7 * week) + weekday - monthOffset(for: month, in: year)
+        return range.contains(day) ? day : 0
     }
 }
 
